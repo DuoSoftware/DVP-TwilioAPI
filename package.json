@@ -18,6 +18,12 @@
   "homepage": "https://github.com/DuoSoftware/DVP-TwilioAPI#readme",
   "dependencies": {
     "config": "^3.1.0",
-    "restify": "^8.3.0"
+    "dvp-common": "^1.5.2",
+    "dvp-mongomodels": "^5.3.10",
+    "request": "^2.88.0",
+    "restify": "^4.0.3",
+    "restify-cors-middleware": "^1.1.1",
+    "restify-jwt": "^0.4.0",
+    "twilio": "^3.30.1"
   }
 }
