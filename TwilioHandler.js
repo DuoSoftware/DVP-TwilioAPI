@@ -13,8 +13,8 @@ const validator = require('validator');
 
 const twilioUrl = config.Services.twilioUrl;
 
-const accountSid = 'AC571130f9c2b2e54511df067c5de360fb';
-const authToken = 'c9703e3b080634a487bc8294d514de8a';
+const accountSid = 'xxx';
+const authToken = 'xxxx';
 
 const client = require('twilio')(accountSid, authToken);
 
