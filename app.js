@@ -43,11 +43,17 @@ RestServer.use(plugins.bodyParser({
 
 
 RestServer.get('/DVP/API/:version/twilio/Countries',authorization({resource:"voxbone", action:"read"}), twilioHandler.ListContries);
-RestServer.get('/DVP/API/:version/twilio/PhoneNumbers/Local/:country',authorization({resource:"voxbone", action:"read"}), twilioHandler.GetLocalPhoneNumbersByCountry);
-RestServer.get('/DVP/API/:version/twilio/PhoneNumbers/TollFree/:country',authorization({resource:"voxbone", action:"read"}), twilioHandler.GetTollFreePhoneNumbersByCountry);
-RestServer.get('/DVP/API/:version/twilio/PhoneNumbers/Mobile/:country',authorization({resource:"voxbone", action:"read"}), twilioHandler.GetMobilePhoneNumbersByCountry);
+RestServer.get('/DVP/API/:version/twilio/PhoneNumbers/Local/:country',authorization({resource:"voxbone", action:"read"}), function (req, res) {
+    twilioHandler.GetLocalPhoneNumbersByCountry(req, res);
+});
+RestServer.get('/DVP/API/:version/twilio/PhoneNumbers/TollFree/:country',authorization({resource:"voxbone", action:"read"}), function (req, res) {
+    twilioHandler.GetTollFreePhoneNumbersByCountry(req, res);
+});
+RestServer.get('/DVP/API/:version/twilio/PhoneNumbers/Mobile/:country',authorization({resource:"voxbone", action:"read"}), function (req, res){
+    twilioHandler.GetMobilePhoneNumbersByCountry(req, res);
+});
 // RestServer.get('/DVP/API/:version/twilio/Buy/Number/:number',authorization({resource:"voxbone", action:"read"}), twilioHandler.BuyPhoneNumber);
-RestServer.get('/DVP/API/:version/twilio/Buy/Number/:number',authorization({resource:"voxbone", action:"read"}), function(req, res){
+RestServer.get('/DVP/API/:version/twilio/Buy/Number/:number/:isoCountry/:numberType',authorization({resource:"voxbone", action:"read"}), function(req, res){
     twilioHandler.BuyPhoneNumber(req, res);
 });
 

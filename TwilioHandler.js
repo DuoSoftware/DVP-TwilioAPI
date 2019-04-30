@@ -10,16 +10,19 @@ const config = require('config');
 const request = require('request');
 const util = require('util');
 const validator = require('validator');
+const {getCode, getName} = require('country-list');
 
 const twilioUrl = config.Services.twilioUrl;
 
-const accountSid = 'xxx';
-const authToken = 'xxxx';
+const accountSid = 'AC571130f9c2b2e54511df067c5de360fb';
+const authToken = 'c9703e3b080634a487bc8294d514de8a';
 
 const client = require('twilio')(accountSid, authToken);
 
 const TwilioAccount = require('dvp-mongomodels/model/Twilio').TwilioAccount;
-// const UserGroup = require('dvp-mongomodels/model/UserGroup').UserGroup;
+var UserAccount = require('dvp-mongomodels/model/UserAccount');
+var Org = require('dvp-mongomodels/model/Organisation');
+
 
 module.exports.TwilioHandler = class TwilioHandler {
 
@@ -175,6 +178,7 @@ module.exports.TwilioHandler = class TwilioHandler {
                                 resolve(parseFloat(price.current_price))
                             }
                         });
+                        reject(false);
                     })
                     .catch(error => {
                         console.log(error);
@@ -184,11 +188,61 @@ module.exports.TwilioHandler = class TwilioHandler {
         )
     }
 
+    async _AssignNumberToTrunk(phoneNumber) {
+
+        let operator = 'TWILIO';
+        let trunkId = 1; // todo get from new trunk endpoint
+        let companyInfo = util.format("%d:%d", tenant, company);
+        let phoneNumberTrunkURL = util.format("http://%s/DVP/API/%s/PhoneNumberTrunkApi/Operator/%s/Trunk/%s/Numbers", config.Services.billingserviceHost, config.Services.billingserviceVersion, operator, trunkId);
+
+        if (validator.isIP(config.Services.billingserviceHost)) {
+
+            phoneNumberTrunkURL = util.format("http://%s/DVP/API/%s/PhoneNumberTrunkApi/Operator/%s/Trunk/%s/Numbers", config.Services.billingserviceHost, config.Services.billingservicePort, config.Services.billingserviceVersion, operator, trunkId);
+
+        }
+
+        let jsonStr = JSON.stringify(billInfo);
+        let accessToken = 'bearer ' + config.Services.accessToken;
+        let options = {
+            url: phoneNumberTrunkURL,
+            method: 'POST',
+            headers: {
+                'content-type': 'application/json',
+                'authorization': accessToken,
+                'companyinfo': companyInfo
+            },
+            body: jsonStr
+        };
+
+        return new Promise(function (resolve, reject) {
+            try {
+                request.post(options, function optionalCallback(err, httpResponse, body) {
+                    if (err) {
+                        console.log('Error occurred:', err);
+                        reject(err);
+                    }
+                    console.log('Server returned: %j', body);
+                    resolve(JSON.parse(body).Result);
+                })
+            } catch (ex) {
+                reject(ex);
+            }
+        });
+    }
+
     async ListContries(req, res) {
         let jsonString;
-
+        let result = [];
         client.pricing.phoneNumbers.countries.list().then(function (countries) {
-                jsonString = messageFormatter.FormatMessage(undefined, "Countries retrieved successfully", true, countries);
+
+                countries.forEach(country => {
+                        result.push({
+                            country: country.country,
+                            isoCountry: country.isoCountry
+                        })
+                    }
+                );
+                jsonString = messageFormatter.FormatMessage(undefined, "Countries retrieved successfully", true, result);
                 res.end(jsonString);
             }
         )
@@ -202,13 +256,34 @@ module.exports.TwilioHandler = class TwilioHandler {
         let jsonString;
         let country = req.params.country;
 
+        let numberPrice;
+        try {/**/
+            numberPrice = await this._NumberPrice(country, 'local');
+        }
+        catch(e){
+                jsonString = messageFormatter.FormatMessage(e, "No Local phone numbers found for searched country", false);
+                res.end(jsonString);
+            }
+
+
         client.availablePhoneNumbers(country).local.list()
             .then(availablePhoneNumbers => {
+                availablePhoneNumbers.map(v => {
+                    v.numberPrice = numberPrice;
+                    v.numberType = 'Local';
+                    v.countryName = getName(country);
+                    v.voice = v.capabilities.voice;
+                    v.SMS = v.capabilities.SMS;
+                    v.MMS = v.capabilities.MMS;
+                    v.fax = v.capabilities.fax;
+                    delete v.capabilities;
+                });
+
                 jsonString = messageFormatter.FormatMessage(undefined, "Phone numbers retrieved successfully", true, availablePhoneNumbers);
                 res.end(jsonString);
             })
             .catch(error => {
-                jsonString = messageFormatter.FormatMessage(undefined, "No Local phone numbers found for searched country", false, error);
+                jsonString = messageFormatter.FormatMessage(error, "No Local phone numbers found for searched country", false);
                 res.end(jsonString);
             })
     }
@@ -217,14 +292,33 @@ module.exports.TwilioHandler = class TwilioHandler {
         let jsonString;
         let country = req.params.country;
 
+        let numberPrice;
+        try {
+            numberPrice = await this._NumberPrice(country, 'toll free');
+        }
+        catch (e) {
+            jsonString = messageFormatter.FormatMessage(e, "No Toll Free phone numbers found for searched country", false);
+            res.end(jsonString);
+        }
+
         client.availablePhoneNumbers(country).tollFree.list()
             .then(availablePhoneNumbers => {
+                availablePhoneNumbers.map(v => {
+                    v.numberPrice = numberPrice;
+                    v.numberType = 'Toll Free';
+                    v.countryName = getName(country);
+                    v.voice = v.capabilities.voice;
+                    v.SMS = v.capabilities.SMS;
+                    v.MMS = v.capabilities.MMS;
+                    v.fax = v.capabilities.fax;
+                    delete v.capabilities;
+                });
                 jsonString = messageFormatter.FormatMessage(undefined, "Phone numbers retrieved successfully", true, availablePhoneNumbers);
                 res.end(jsonString);
             })
             .catch(error => {
                 console.log(error);
-                jsonString = messageFormatter.FormatMessage(undefined, "No toll-free phone numbers found for searched country", false, error);
+                jsonString = messageFormatter.FormatMessage(error, "No toll-free phone numbers found for searched country", false);
                 res.end(jsonString);
             })
     }
@@ -233,8 +327,26 @@ module.exports.TwilioHandler = class TwilioHandler {
         let jsonString;
         let country = req.params.country;
 
+        let numberPrice;
+        try {
+            numberPrice = await this._NumberPrice(country, 'mobile');
+        }
+        catch (e) {
+            jsonString = messageFormatter.FormatMessage(e, "No Mobile phone numbers found for searched country", false);
+            res.end(jsonString);
+        }
         client.availablePhoneNumbers(country).mobile.list()
             .then(availablePhoneNumbers => {
+                availablePhoneNumbers.map(v => {
+                    v.numberPrice = numberPrice;
+                    v.numberType = 'Mobile';
+                    v.countryName = getName(country);
+                    v.voice = v.capabilities.voice;
+                    v.SMS = v.capabilities.SMS;
+                    v.MMS = v.capabilities.MMS;
+                    v.fax = v.capabilities.fax;
+                    delete v.capabilities;
+                });
                 jsonString = messageFormatter.FormatMessage(undefined, "Phone numbers retrieved successfully", true, availablePhoneNumbers);
                 res.end(jsonString);
             })
@@ -257,82 +369,93 @@ module.exports.TwilioHandler = class TwilioHandler {
         let availableCredit = parseFloat(creditDetails.Credit);
         console.log(availableCredit);
 
-        let isPhoneNumberValid = await this._ValidatePhoneNumber(phoneNumber, isoCountry, numberType);
+        try {
+            await this._ValidatePhoneNumber(phoneNumber, isoCountry, numberType);
+        } catch (e) {
+            jsonString = messageFormatter.FormatMessage(e, "The selected phonenumber is not available ot purchase in given country", false);
+            return res.end(jsonString);
+        }
 
-        if (!isPhoneNumberValid) {
-
-            jsonString = messageFormatter.FormatMessage(undefined, "The selected phonenumber is not available ot purchase in given country", false);
-            res.end(jsonString)
-
+        let numberPrice;
+        try {
+            numberPrice = await this._NumberPrice(isoCountry, numberType);
+        } catch (e) {
+            jsonString = messageFormatter.FormatMessage(e, "Error occurred while fetching number prices", false);
+            return res.end(jsonString);
+        }
+        if (availableCredit < numberPrice) { // stop if insufficient balance in wallet
+            jsonString = messageFormatter.FormatMessage(undefined, "Insufficient balance in your wallet", false);
+            return res.end(jsonString)
         } else {
+            let accSid = await TwilioAccount.find({company: company, tenant: tenant}).select('sid');
 
-            let numberPrice = await this._NumberPrice(isoCountry, numberType);
+            if (accSid === undefined || accSid.length == 0) { // check if subaccount exist if not create
+                const account = await client.api.accounts.create({friendlyName: 'Submarine'});
 
-            if (availableCredit < numberPrice) { // stop if insufficient balance in wallet, 1 is the price of a phonunumber #todo get price from api
-                jsonString = messageFormatter.FormatMessage(undefined, "Insufficient balance in your wallet", false);
-                res.end(jsonString)
-            } else {
-                let accSid = await TwilioAccount.find({company: company, tenant: tenant}).select('sid');
+                accSid = account.sid;
 
-                if (accSid === undefined || accSid.length == 0) { // check if subaccount exist if not create
-                    const account = await client.api.accounts.create({friendlyName: 'Submarine'});
+                let twilioAcc = TwilioAccount({
+                    company: company,
+                    tenant: tenant,
+                    sid: accSid,
+                    created_at: Date.now(),
+                    updated_at: Date.now(),
+                    status: true
 
-                    accSid = account.sid;
+                });
 
-                    let twilioAcc = TwilioAccount({
-                        company: company,
-                        tenant: tenant,
-                        sid: accSid,
-                        created_at: Date.now(),
-                        updated_at: Date.now(),
-                        status: true
+                await twilioAcc.save();
+            }
 
-                    });
+            let rUser = await UserAccount.findOne({
+                tenant: tenant,
+                company: company,
+                user: req.user.iss
+            }).populate('userref', '-password');
 
-                    await twilioAcc.save();
-                }
+            let userRef = rUser.userref;
 
-                client.incomingPhoneNumbers.create({ // purchase the number for the created subaccount
+            let org = await Org.findOne({tenant: tenant, id: company}).populate('ownerRef', '-password');
+
+            let billingObj = {
+                userInfo: userRef,
+                companyInfo: org,
+                name: phoneNumber,
+                type: "PHONE_NUMBER",
+                category: "DID",
+                setupFee: 0,
+                unitPrice: numberPrice,
+                units: 1,
+                description: 'Number fee',
+                date: Date.now(),
+                valid: true,
+                isTrial: false
+            };
+
+
+            try {
+                let deductWallet = await this._DeductCredit(company, tenant, billingObj); // buy package to deduct from wallet
+
+            } catch (e) {
+                jsonString = messageFormatter.FormatMessage(err, "Credit deduction from wallet failed", false, err);
+                res.end(jsonString);
+            }
+
+            try {
+                let purchasedNumber = await client.incomingPhoneNumbers.create({ // purchase the number for the created subaccount
                     phoneNumber: phoneNumber,
                     AccountSid: accSid
-                }).then(purchasedNumber => {
-                    console.log(purchasedNumber.sid);
-                    //deduct from wallet
+                })
+            } catch (e) {
+                // todo Refund wallet deduction
+                jsonString = messageFormatter.FormatMessage(undefined, "Error occurred while purchasing a phone number", false, error);
+                res.end(jsonString);
 
-                    var billingObj = {
-                        userInfo: rUser,
-                        companyInfo: org,
-                        name: purchasedNumber.sid,
-                        type: "PHONE_NUMBER",
-                        category: "DID",
-                        setupFee: 1, //todo
-                        unitPrice: numberPrice,
-                        units: 1,
-                        description: 'Number fee',
-                        date: Date.now(),
-                        valid: true,
-                        isTrial: false
-                    };
-
-                    this._DeductCredit(company, tenant, billingObj).then((result) => {
-                            //result if success
-                            jsonString = messageFormatter.FormatMessage(undefined, "Phone number purchased successfully", true, purchasedNumber.sid);
-                            res.end(jsonString);
-                        }
-                    ).catch((err) => {
-                            jsonString = messageFormatter.FormatMessage(err, "Credit deduction from wallet failed", false, err);
-                            res.end(jsonString); //todo rollback the bought number
-                        }
-                    );
-
-                }).catch(
-                    error => {
-                        jsonString = messageFormatter.FormatMessage(undefined, "Error occurred while purchasing a phone number", false, error);
-                        res.end(jsonString);
-                    }
-                );
             }
+
+
         }
+
     }
 };
 
