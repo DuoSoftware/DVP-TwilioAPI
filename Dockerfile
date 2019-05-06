@@ -5,4 +5,4 @@ RUN cd /usr/local/src/twilioapi;
 WORKDIR /usr/local/src/twilioapi
 RUN npm install
 EXPOSE 8832
-CMD [ "node", "/usr/local/src/voxboneapi/app.js" ]
+CMD [ "node", "/usr/local/src/twilioapi/app.js" ]

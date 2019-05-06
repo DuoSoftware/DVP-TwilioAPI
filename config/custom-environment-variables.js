@@ -1,4 +1,6 @@
 module.exports = {
+    "Operator": "SYS_OPERATOR",
+    "TrunkID": "SYS_TRUNK",
     "DB": {
         "Type":"SYS_DATABASE_TYPE",
         "User":"SYS_DATABASE_POSTGRES_USER",
@@ -26,7 +28,8 @@ module.exports = {
     },
     "Services": {
         "authToken": "HOST_TOKEN",
-        "apiKey": "TWILIO_APIKEY",
+        "authTokenTwilio": "TWILIO_AUTHTOK",
+        "accountSidTwilio": "TWILIO_ACCSID",
         "limitServiceHost": "SYS_LIMITHANDLER_HOST",
         "limitServicePort": "SYS_LIMITHANDLER_PORT",
         "limitServiceVersion": "SYS_LIMITHANDLER_VERSION",
