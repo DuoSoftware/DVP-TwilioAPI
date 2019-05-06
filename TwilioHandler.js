@@ -10,8 +10,8 @@ const util = require('util');
 const validator = require('validator');
 const {getCode, getName} = require('country-list');
 
-const accountSid = 'xxx';
-const authToken = 'xxx';
+const accountSid = config.Services.accountSidTwilio;
+const authToken = config.Services.authTokenTwilio;
 
 const client = require('twilio')(accountSid, authToken);
 
@@ -49,13 +49,15 @@ module.exports.TwilioHandler = class TwilioHandler {
                 request(options, function optionalCallback(err, httpResponse, body) {
                     if (err) {
                         console.log('Error occurred:', err);
-                        reject(err);
+                        logger.error('[DVP-TwilioHandler._CheckCredit] - [%s] - Exception occurred on method _CheckCredit', body,  err);
+                        return reject(err);
                     }
                     console.log('Server returned: %j', body);
-                    resolve(JSON.parse(body).Result);
+                    return resolve(JSON.parse(body).Result);
                 })
             } catch (ex) {
-                reject(ex);
+                logger.error('[DVP-TwilioHandler._CheckCredit] - [%s] - Exception occurred on method _CheckCredit', null,  err);
+                return reject(ex);
             }
         });
 
@@ -90,13 +92,15 @@ module.exports.TwilioHandler = class TwilioHandler {
                 request.post(options, function optionalCallback(err, httpResponse, body) {
                     if (err) {
                         console.log('Error occurred:', err);
-                        reject(err);
+                        logger.error('[DVP-TwilioHandler._DeductCredit] - [%s] - Exception occurred on method _DeductCredit', body,  err);
+                        return reject(err);
                     }
                     console.log('Server returned: %j', body);
-                    resolve(JSON.parse(body).Result);
+                    return resolve(JSON.parse(body).Result);
                 })
             } catch (ex) {
-                reject(ex);
+                logger.error('[DVP-TwilioHandler._DeductCredit] - [%s] - Exception occurred on method _DeductCredit', null,  ex);
+                return reject(ex);
             }
         });
 
@@ -113,14 +117,14 @@ module.exports.TwilioHandler = class TwilioHandler {
                 })
                     .then(availablePhoneNumbers => {
                         if (availablePhoneNumbers === undefined || availablePhoneNumbers.length == 0) {
-                            reject(false)
+                            return reject(false)
                         } else {
-                            resolve(true)
+                            return resolve(true)
                         }
 
                     }).catch(err => {
-                    console.log(err);
-                    reject(err)
+                    logger.error('[DVP-TwilioHandler._ValidatePhoneNumber] - [%s] - Exception occurred on method _ValidatePhoneNumber', null,  err);
+                    return reject(err)
                 });
             } else if (numberType === 'mobile') {
                 client
@@ -130,16 +134,16 @@ module.exports.TwilioHandler = class TwilioHandler {
                 })
                     .then(availablePhoneNumbers => {
                         if (availablePhoneNumbers === undefined || availablePhoneNumbers.length == 0) {
-                            reject(false)
+                            return reject(false)
                         } else {
-                            resolve(true)
+                            return resolve(true)
                         }
 
                     }).catch(err => {
-                    console.log(err);
-                    reject(err)
+                    logger.error('[DVP-TwilioHandler._ValidatePhoneNumber] - [%s] - Exception occurred on method _ValidatePhoneNumber', null,  err);
+                    return reject(err)
                 });
-            } else if (numberType === 'toll-free') {
+            } else if (numberType === 'toll free') {
                 client
                     .availablePhoneNumbers(isoCountry)
                     .tollFree.list({
@@ -147,14 +151,14 @@ module.exports.TwilioHandler = class TwilioHandler {
                 })
                     .then(availablePhoneNumbers => {
                         if (availablePhoneNumbers === undefined || availablePhoneNumbers.length == 0) {
-                            reject(false)
+                            return reject(false)
                         } else {
-                            resolve(true)
+                            return resolve(true)
                         }
 
                     }).catch(err => {
-                    console.log(err);
-                    reject(err)
+                    logger.error('[DVP-TwilioHandler._ValidatePhoneNumber] - [%s] - Exception occurred on method _ValidatePhoneNumber', null,  err);
+                    return reject(err)
                 });
             }
         })
@@ -167,26 +171,31 @@ module.exports.TwilioHandler = class TwilioHandler {
                     .countries(country)
                     .fetch()
                     .then(country => {
-                        country.phoneNumberPrices.forEach(price => {
-                            if (price.number_type === numberType) { // assumed that the api returns USD
-                                console.log(`${price.number_type} ${price.current_price}`);
-                                resolve(parseFloat(price.current_price))
+                        let price = null;
+                        country.phoneNumberPrices.forEach(priceObj => {
+                            if (priceObj.number_type === numberType) { // assumed that the api returns USD
+                                price = parseFloat(priceObj.current_price)
                             }
                         });
-                        reject(false);
+                        if(price) {
+                            return resolve(price)
+                        }
+                        else{
+                            return reject(false)
+                        }
                     })
                     .catch(error => {
-                        console.log(error);
-                        reject(error)
+                        logger.error('[DVP-TwilioHandler._NumberPrice] - [%s] - Exception occurred on method _NumberPrice', null,  error);
+                        return reject(error)
                     });
             }
         )
     }
 
-    async _AssignNumberToTrunk(tenant, company, phoneNumber) {
+    async _AssignNumberToTrunk(tenant, company, phoneNumber, token) {
 
-        let operator = 'TWILIO';
-        //let trunkId = 1; // todo get from new trunk endpoint
+        const operator = config.Operator;
+        const trunkID = config.TrunkID;
         let trunkUrl = util.format("http://%s/DVP/API/%s", config.Services.trunkServiceHost, config.Services.trunkServiceVersion);
 
         if (validator.isIP(config.Services.trunkServiceHost)) {
@@ -198,18 +207,18 @@ module.exports.TwilioHandler = class TwilioHandler {
             "Enable": true,
             "PhoneNumber": phoneNumber,
             "ObjCategory": "BOTH",
-            "TrunkId": 41,
-            "InboundLimitId": "numberfbf1ae67-dfb4-480a-a749-4104e4eec2cc",
-            "OutboundLimitId": "numberbf097e3c-dbed-4faf-82d0-f58cd1a6db4e",
-            "BothLimitId": "number51f2b97e-993f-437b-ac34-384b5f7dadf4"
+            "TrunkId": trunkID,
+            "InboundLimitId": null,
+            "OutboundLimitId": null,
+            "BothLimitId": null
         };
         let options = {
             method: 'POST',
-            uri: trunkUrl + '/PhoneNumberTrunkApi/TrunkNumber',
+            uri: trunkUrl + '/PhoneNumberTrunkApi/TrunkNumber/Any',
             headers: {
                 'Content-Type': 'application/json',
                 'Accept': 'application/json',
-                'Authorization': 'bearer ' + config.Services.accessToken
+                'Authorization': token
             },
             body: JSON.stringify(data)
         };
@@ -219,17 +228,77 @@ module.exports.TwilioHandler = class TwilioHandler {
                 request.post(options, function optionalCallback(err, httpResponse, body) {
                     if (err) {
                         console.log('Error occurred:', err);
-                        reject(err);
+                        logger.error('[DVP-TwilioHandler._AssignNumberToTrunk] - [%s] - Exception occurred on method _AssignNumberToTrunk', null,  err);
+                        return reject(err);
                     }
                     console.log('Server returned: %j', body);
                     if (!JSON.parse(body).IsSuccess) {
-                        reject(false);
+                        logger.error('[DVP-TwilioHandler._AssignNumberToTrunk] - [%s] - Exception occurred on method _AssignNumberToTrunk', body,  err);
+                        return reject(false);
                     } else {
-                        resolve(JSON.parse(body).Result);
+                        return resolve(JSON.parse(body).Result);
                     }
                 })
             } catch (ex) {
-                reject(ex);
+                return reject(ex);
+            }
+        });
+    }
+
+    async _CreateDefaultRuleInbound(tenant, company, phoneNumber) {
+
+        let ruleUrl = util.format("http://%s/DVP/API/%s", config.Services.ruleserviceHost, config.Services.ruleserviceVersion);
+
+        if (validator.isIP(config.Services.ruleserviceHost)) {
+
+            ruleUrl = util.format("http://%s:%s/DVP/API/%s", config.Services.ruleserviceHost, config.Services.ruleservicePort, config.Services.ruleserviceVersion);
+
+        }
+
+        var data = {
+            ANI: null,
+            ANIRegExPattern: "ANY",
+            CallRuleDescription: "Inbound Rule " + phoneNumber,
+            Context: "ANY",
+            DNIS: phoneNumber,
+            Direction: "INBOUND",
+            Enable: true,
+            ObjCategory: "CALL",
+            Priority: 1,
+            RegExPattern: "STARTWITH",
+            TrunkNumber: null
+        };
+        var options = {
+            method: 'POST',
+            uri: ruleUrl+'/CallRuleApi/CallRule',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'Authorization': 'bearer ' + config.Services.accessToken,
+                'companyinfo': tenant + ':' + company
+            },
+            body: JSON.stringify(data)
+        };
+
+
+        return new Promise(function (resolve, reject) {
+            try {
+                request.post(options, function optionalCallback(err, httpResponse, body) {
+                    if (err) {
+                        console.log('Error occurred:', err);
+                        return reject(err);
+                    }
+                    console.log('Server returned: %j', body);
+                    if (!JSON.parse(body).IsSuccess) {
+                        logger.error('[DVP-TwilioHandler._CreateDefaultRuleInbound] - [%s] - Exception occurred on method _CreateDefaultRuleInbound', body,  null);
+                        return reject(false);
+                    } else {
+                        return resolve(JSON.parse(body).Result);
+                    }
+                })
+            } catch (ex) {
+                logger.error('[DVP-TwilioHandler._CreateDefaultRuleInbound] - [%s] - Exception occurred on method _CreateDefaultRuleInbound', null,  ex);
+                return reject(ex);
             }
         });
     }
@@ -262,12 +331,12 @@ module.exports.TwilioHandler = class TwilioHandler {
                     }
                 );
                 jsonString = messageFormatter.FormatMessage(undefined, "Countries retrieved successfully", true, result);
-                res.end(jsonString);
+                return res.end(jsonString);
             }
         )
             .catch(error => {
                 console.log(error);
-                res.end(error);
+                return res.end(error);
             })
     };
 
@@ -298,11 +367,11 @@ module.exports.TwilioHandler = class TwilioHandler {
                 });
 
                 jsonString = messageFormatter.FormatMessage(undefined, "Phone numbers retrieved successfully", true, availablePhoneNumbers);
-                res.end(jsonString);
+                return res.end(jsonString);
             })
             .catch(error => {
                 jsonString = messageFormatter.FormatMessage(error, "No Local phone numbers found for searched country", false);
-                res.end(jsonString);
+                return res.end(jsonString);
             })
     }
 
@@ -375,14 +444,24 @@ module.exports.TwilioHandler = class TwilioHandler {
 
     async BuyPhoneNumber(req, res) {
         let jsonString;
-        let phoneNumber = req.params.number;
-        let isoCountry = req.params.isoCountry;
-        let numberType = req.params.numberType;
+        let phoneNumber = req.body.number;
+        let isoCountry = req.body.isoCountry;
+        let numberType = req.body.numberType.toLowerCase();
         let company = parseInt(req.user.company);
         let tenant = parseInt(req.user.tenant);
 
-        let creditDetails = await this._CheckCredit(company, tenant);
-        let availableCredit = parseFloat(creditDetails.Credit);
+        let availableCredit;
+        try {
+            let creditDetails = await this._CheckCredit(company, tenant);
+            availableCredit = parseFloat(creditDetails.Credit);
+
+        }
+        catch (e) {
+            logger.error('[DVP-TwilioHandler._CheckCredit] - [%s] - Exception occurred on method _CheckCredit', null,  e);
+            jsonString = messageFormatter.FormatMessage(e, "Error occurred when checking the available credit", false);
+            return res.end(jsonString);
+
+        }
 
         if (phoneNumber.indexOf('+') > -1) {
             phoneNumber = phoneNumber.replace('+', '');
@@ -409,7 +488,7 @@ module.exports.TwilioHandler = class TwilioHandler {
             let accSid = await TwilioAccount.find({company: company, tenant: tenant}).select('sid');
 
             if (accSid === undefined || accSid.length == 0) { // check if subaccount exist if not create
-                const account = await client.api.accounts.create({friendlyName: 'subaccount:'+company +':'+ tenant});
+                const account = await client.api.accounts.create({friendlyName: 'subaccount:' + company + ':' + tenant});
 
                 accSid = account.sid;
 
@@ -468,7 +547,6 @@ module.exports.TwilioHandler = class TwilioHandler {
                 });
                 console.log(purchasedNumber.sid);
             } catch (e) {
-                // todo Refund wallet deduction
                 jsonString = messageFormatter.FormatMessage(undefined, "Error occurred while purchasing a phone number", false, error);
                 return res.end(jsonString);
 
@@ -487,7 +565,7 @@ module.exports.TwilioHandler = class TwilioHandler {
 
             try {
 
-                await this._AssignNumberToTrunk(tenant, company, phoneNumber); // Assumed only one trunk exist which is already created
+                await this._AssignNumberToTrunk(tenant, company, phoneNumber, req.headers.authorization); // Assumed only one trunk exist which is already created
 
             } catch (e) {
                 jsonString = messageFormatter.FormatMessage(e, "Phone number assignment to trunk failed", false);
@@ -500,6 +578,15 @@ module.exports.TwilioHandler = class TwilioHandler {
 
             } catch (e) {
                 jsonString = messageFormatter.FormatMessage(e, "Error occurred when creating the originating URL", false);
+                return res.end(jsonString);
+            }
+
+            try {
+
+               await this._CreateDefaultRuleInbound(tenant, company, phoneNumber); // Default inbound rule
+
+            } catch (e) {
+                jsonString = messageFormatter.FormatMessage(e, "Default rule assignment failed", false);
                 return res.end(jsonString);
             }
 

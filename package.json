@@ -18,6 +18,7 @@
   "homepage": "https://github.com/DuoSoftware/DVP-TwilioAPI#readme",
   "dependencies": {
     "config": "^3.1.0",
+    "country-list": "^2.1.0",
     "dvp-common": "^1.5.2",
     "dvp-mongomodels": "^5.3.10",
     "request": "^2.88.0",

@@ -8,7 +8,6 @@ const port = config.Host.port || 3000;
 const host = config.Host.vdomain || 'localhost';
 const mongomodel = require('dvp-mongomodels');
 
-const version = config.Host.version;
 const logger = require('dvp-common/LogHandler/CommonLogHandler.js').logger;
 const authorization = require('dvp-common/Authentication/Authorization.js');
 const secret = require('dvp-common/Authentication/Secret.js');
@@ -52,8 +51,7 @@ RestServer.get('/DVP/API/:version/twilio/PhoneNumbers/TollFree/:country',authori
 RestServer.get('/DVP/API/:version/twilio/PhoneNumbers/Mobile/:country',authorization({resource:"voxbone", action:"read"}), function (req, res){
     twilioHandler.GetMobilePhoneNumbersByCountry(req, res);
 });
-// RestServer.get('/DVP/API/:version/twilio/Buy/Number/:number',authorization({resource:"voxbone", action:"read"}), twilioHandler.BuyPhoneNumber);
-RestServer.get('/DVP/API/:version/twilio/Buy/Number/:number/:isoCountry/:numberType',authorization({resource:"voxbone", action:"read"}), function(req, res){
+RestServer.post('/DVP/API/:version/twilio/Buy/Number',authorization({resource:"voxbone", action:"read"}), function(req, res){
     twilioHandler.BuyPhoneNumber(req, res);
 });
 
