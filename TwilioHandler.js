@@ -330,8 +330,10 @@ module.exports.TwilioHandler = class TwilioHandler {
                         })
                     }
                 );
-                jsonString = messageFormatter.FormatMessage(undefined, "Countries retrieved successfully", true, result);
-                return res.end(jsonString);
+                result.sort((a, b) => (a.country > b.country) ? 1 : -1);
+
+            jsonString = messageFormatter.FormatMessage(undefined, "Countries retrieved successfully", true, result);
+            return res.end(jsonString);
             }
         )
             .catch(error => {
