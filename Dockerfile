@@ -4,5 +4,5 @@ RUN git clone -b $VERSION_TAG https://github.com/DuoSoftware/DVP-TwilioAPI.git /
 RUN cd /usr/local/src/twilioapi;
 WORKDIR /usr/local/src/twilioapi
 RUN npm install
-EXPOSE 8832
+EXPOSE 3639
 CMD [ "node", "/usr/local/src/twilioapi/app.js" ]
