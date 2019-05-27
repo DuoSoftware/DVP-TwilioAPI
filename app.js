@@ -41,7 +41,9 @@ RestServer.use(plugins.bodyParser({
 }));
 
 
-RestServer.get('/DVP/API/:version/twilio/Countries',authorization({resource:"twilio", action:"read"}), twilioHandler.ListContries);
+RestServer.get('/DVP/API/:version/twilio/Countries',authorization({resource:"twilio", action:"read"}), function (req, res) {
+    twilioHandler.ListContries(req, res);
+});
 RestServer.get('/DVP/API/:version/twilio/PhoneNumbers/Local/:country',authorization({resource:"twilio", action:"read"}), function (req, res) {
     twilioHandler.GetLocalPhoneNumbersByCountry(req, res);
 });

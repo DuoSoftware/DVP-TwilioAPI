@@ -455,7 +455,7 @@ module.exports.TwilioHandler = class TwilioHandler {
         let availableCredit;
         try {
             let creditDetails = await this._CheckCredit(company, tenant);
-            availableCredit = parseFloat(creditDetails.Credit);
+            availableCredit = parseFloat(creditDetails.Credit)/100;
 
         }
         catch (e) {
@@ -549,7 +549,7 @@ module.exports.TwilioHandler = class TwilioHandler {
                 });
                 console.log(purchasedNumber.sid);
             } catch (e) {
-                jsonString = messageFormatter.FormatMessage(undefined, "Error occurred while purchasing a phone number", false, error);
+                jsonString = messageFormatter.FormatMessage(undefined, "Error occurred while purchasing a phone number", false, e);
                 return res.end(jsonString);
 
             }
