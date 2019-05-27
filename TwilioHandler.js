@@ -554,8 +554,9 @@ module.exports.TwilioHandler = class TwilioHandler {
 
             }
 
+            let twilioTrunk;
             try {
-                let twilioTrunk = await client.trunking.trunks.list(); // get available trunks in twilio
+                twilioTrunk = await client.trunking.trunks.list(); // get available trunks in twilio
                 let trunkAssign = await client.trunking.trunks(twilioTrunk[0].sid).phoneNumbers.create(
                     {phoneNumberSid: purchasedNumber.sid}
                 ); // assign phone number to twilio trunk assuming there exist only one trunk
