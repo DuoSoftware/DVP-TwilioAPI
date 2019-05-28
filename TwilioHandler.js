@@ -338,7 +338,8 @@ module.exports.TwilioHandler = class TwilioHandler {
         )
             .catch(error => {
                 console.log(error);
-                return res.end(error);
+                jsonString = messageFormatter.FormatMessage(error, "Error occurred when retrieving countries", false);
+                return res.end(jsonString);
             })
     };
 
@@ -438,7 +439,7 @@ module.exports.TwilioHandler = class TwilioHandler {
                 return res.end(jsonString);
             })
             .catch(error => {
-                jsonString = messageFormatter.FormatMessage(undefined, "No mobile phone numbers found for searched country", false, error);
+                jsonString = messageFormatter.FormatMessage(error, "No mobile phone numbers found for searched country", false);
                 return res.end(jsonString);
             })
     }
@@ -464,9 +465,9 @@ module.exports.TwilioHandler = class TwilioHandler {
             return res.end(jsonString);
 
         }
-
+        let phoneNumberRule;
         if (phoneNumber.indexOf('+') > -1) {
-            phoneNumber = phoneNumber.replace('+', '');
+            phoneNumberRule = phoneNumber.replace('+', '');
         }
         try {
             await this._ValidatePhoneNumber(phoneNumber, isoCountry, numberType);
@@ -537,7 +538,7 @@ module.exports.TwilioHandler = class TwilioHandler {
                 let deductWallet = await this._DeductCredit(company, tenant, billingObj); // buy package to deduct from wallet
 
             } catch (e) {
-                jsonString = messageFormatter.FormatMessage(err, "Credit deduction from wallet failed", false, err);
+                jsonString = messageFormatter.FormatMessage(e, "Credit deduction from wallet failed", false);
                 return res.end(jsonString);
             }
 
@@ -549,7 +550,7 @@ module.exports.TwilioHandler = class TwilioHandler {
                 });
                 console.log(purchasedNumber.sid);
             } catch (e) {
-                jsonString = messageFormatter.FormatMessage(undefined, "Error occurred while purchasing a phone number", false, e);
+                jsonString = messageFormatter.FormatMessage(e, "Error occurred while purchasing the phone number", false);
                 return res.end(jsonString);
 
             }
@@ -562,7 +563,7 @@ module.exports.TwilioHandler = class TwilioHandler {
                 ); // assign phone number to twilio trunk assuming there exist only one trunk
 
             } catch (e) {
-                jsonString = messageFormatter.FormatMessage(undefined, "Error occurred assigning phone number to trunk", false, e);
+                jsonString = messageFormatter.FormatMessage(e, "Error occurred assigning phone number to trunk", false);
                 return res.end(jsonString);
             }
 
@@ -575,18 +576,18 @@ module.exports.TwilioHandler = class TwilioHandler {
                 return res.end(jsonString);
             }
 
+            // try {
+            //
+            //     await this._CreateOriginatingURL(twilioTrunk[0].sid, phoneNumber); // create originating URL for the phone number and callserver IP for incoming calls
+            //
+            // } catch (e) {
+            //     jsonString = messageFormatter.FormatMessage(e, "Error occurred when creating the originating URL", false);
+            //     return res.end(jsonString);
+            // }
+
             try {
 
-                await this._CreateOriginatingURL(twilioTrunk[0].sid, phoneNumber); // create originating URL for the phone number and callserver IP for incoming calls
-
-            } catch (e) {
-                jsonString = messageFormatter.FormatMessage(e, "Error occurred when creating the originating URL", false);
-                return res.end(jsonString);
-            }
-
-            try {
-
-               await this._CreateDefaultRuleInbound(tenant, company, phoneNumber); // Default inbound rule
+               await this._CreateDefaultRuleInbound(tenant, company, phoneNumberRule); // Default inbound rule
 
             } catch (e) {
                 jsonString = messageFormatter.FormatMessage(e, "Default rule assignment failed", false);
